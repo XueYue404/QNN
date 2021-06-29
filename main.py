@@ -145,4 +145,4 @@ if load_check_point == True:
 for epoch in range(start_epoch,end_epoch):
   train(epoch)
   test(epoch)
-logger.save_logger(LOG_RESULT_PATH)
+  logger.save_logger(LOG_RESULT_PATH)
