@@ -20,14 +20,16 @@ from torch.autograd import Function
 from utils.cifar10_prepare import cifar10_data_loader
 from utils.logger import Logger
 from model.qalexnet import AlexNet
+from model.mobilenetV2 import MobileNetV2
+from model.qmobilenetV2 import QMobileNetV2
 
 # 定义超参数和设备
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 hp = {
-  'n_epochs' : 10,
-  'bitW' : 8,
-  'bitA' : 16,
-  'bitG' : 16,
+  'n_epochs' : 30,
+  'bitW' : 4,
+  'bitA' : 8,
+  'bitG' : 8,
   'batch_size_train' : 64,
   'batch_size_test' : 512,
   'train_log_interval' : 1024,
@@ -83,7 +85,7 @@ def train(epoch):
           logger.train_loss.append(loss.item())
           logger.train_counter.append(
               num_of_train_samples_this_epoch + ((epoch-1)*len(train_loader.dataset)))
-
+      # break  
 
 def test(epoch):
     network.eval()
@@ -105,7 +107,8 @@ def test(epoch):
 
     # logger记录
     logger.test_counter.append(epoch)
-    logger.test_accuracy.append(acc)
+    logger.test_accuracy.append(acc.item())
+ 
 
     # 记录最佳精度，用到全局变量
     global best_acc
@@ -124,7 +127,14 @@ def test(epoch):
 random_seed = 1
 torch.manual_seed(random_seed)
 
-network = AlexNet(isquant = False).to(device)
+# network = AlexNet(isquant = False).to(device)
+# network = MobileNetV2(num_classes=10).to(device)
+network = QMobileNetV2(
+    num_classes=10,
+    bitW=hp['bitW'],
+    bitA=hp['bitA'],
+    bitG=hp['bitG']
+  ).to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(network.parameters())
 
@@ -134,7 +144,7 @@ logger.hyper_param = hp
 #从checkpoint恢复训练
 start_epoch = 1
 end_epoch = hp['n_epochs'] + 1
-load_check_point = True
+load_check_point = False
 if load_check_point == True:
   print("=====Loading Checkpoint====>")
   checkpoint = torch.load(CHECKPOINT_PATH + '/ckpt.pth')
@@ -144,5 +154,6 @@ if load_check_point == True:
 
 for epoch in range(start_epoch,end_epoch):
   train(epoch)
-  test(epoch)
+  test(epoch)   
+  logger.epoch.append(epoch)
   logger.save_logger(LOG_RESULT_PATH)
